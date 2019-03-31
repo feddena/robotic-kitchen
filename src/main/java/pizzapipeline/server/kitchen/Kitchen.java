@@ -1,7 +1,6 @@
 package pizzapipeline.server.kitchen;
 
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -11,7 +10,6 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import javax.annotation.PreDestroy;
 import javax.validation.constraints.NotNull;
 
 import org.apache.commons.lang3.Validate;
@@ -59,29 +57,47 @@ public class Kitchen {
                 return;
             }
 
-            log.info("Looking for available devices to cook {}", id2Item);
+            log.debug("Looking for available devices to cook {}", id2Item);
 
             id2Item.forEach(idAndItem -> {
                 long id = idAndItem.getKey();
                 int nextAction = taskManager.getNextActionOrderId(id);
                 Item item = idAndItem.getValue();
                 Action action = item.getRecipe().getActions().get(nextAction);
-                //log.info("Trying to perform {} for {}", action, item.getType());
+                log.debug("Trying to perform {} for {}-{}", action, item.getType(), item.getId());
                 tools.get(action.getType()).forEach(device -> {
-                    boolean lockedToPerform = device.lockToApply();
+
+                    boolean lockedToPerform = device.lockToApply(item.getId(), action.getType());
                     if (lockedToPerform) {
-                        log.info("Performing {} for {}", action, item.getType());
+                        boolean lockedToPerform2 = true;
+                        if (action.getType() == ActionType.MOVE_TO_OVEN) {
+                            for (Device device2 : tools.get(ActionType.COOK_IN_OVEN)) {
+                                lockedToPerform2 = device2.lockToPutIn(item.getId(), ActionType.COOK_IN_OVEN);
+
+                                if (lockedToPerform2) {
+                                    device2.unsafePutItem(id);
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!lockedToPerform2) {
+                            device.unlock();
+                            delayPerforming(action, item, nextAction);
+                            return;
+                        }
+
+                        log.info("Performing {} for {}-{}", action, item.getType(), id);
                         device.apply(item, action);
                         if (item.getRecipe().getActions().size() - 1 > nextAction) {
-                            log.info("Schedule next action {} for {}", item.getRecipe().getActions().get(nextAction + 1), id);
+                            log.debug("Schedule next action {} for {}", item.getRecipe().getActions().get(nextAction + 1), id);
                             taskManager.addActionTask(id, nextAction + 1);
                         } else {
                             cooked(id);
-                            log.info("{} cooked", item.getType());
+                            log.info("{}-{} cooked", item.getType(), id);
                         }
                     } else {
-                        log.info("Performing {} for {} delayed", action, item.getType());
-                        taskManager.addActionTask(id, nextAction);
+                        delayPerforming(action, item, nextAction);
                     }
                 });
             });
@@ -120,5 +136,10 @@ public class Kitchen {
 
     private void cooked(long id) {
         nowCooking.remove(id);
+    }
+
+    private void delayPerforming(Action action, Item item, int nextAction) {
+        log.debug("Performing {} for {} delayed", action, item.getType());
+        taskManager.addActionTask(item.getId(), nextAction);
     }
 }

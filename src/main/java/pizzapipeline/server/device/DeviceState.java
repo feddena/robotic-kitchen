@@ -1,5 +1,5 @@
 package pizzapipeline.server.device;
 
 public enum DeviceState {
-    FREE, BUSY, BROKEN
+    FREE, BUSY, FREE_WITH_ITEM
 }
