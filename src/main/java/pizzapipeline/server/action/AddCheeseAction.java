@@ -10,4 +10,9 @@ public class AddCheeseAction extends Action {
     public ActionType getType() {
         return ActionType.ADD_CHEESE;
     }
+
+    @Override
+    public String toString() {
+        return "AddCheeseAction{}";
+    }
 }

@@ -10,4 +10,9 @@ public class AddSauceAction extends Action {
     public ActionType getType() {
         return ActionType.ADD_SAUCE;
     }
+
+    @Override
+    public String toString() {
+        return "AddSauceAction{}";
+    }
 }

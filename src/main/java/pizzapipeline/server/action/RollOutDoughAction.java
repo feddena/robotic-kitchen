@@ -10,4 +10,9 @@ public class RollOutDoughAction extends Action {
     public ActionType getType() {
         return ActionType.ROLL_OUT_THE_DOUGH;
     }
+
+    @Override
+    public String toString() {
+        return "RollOutDoughAction{}";
+    }
 }

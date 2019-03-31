@@ -25,6 +25,7 @@ import pizzapipeline.server.item.PizzaItem;
 import pizzapipeline.server.recipe.Recipe;
 
 public class BasicUnitTest {
+
     @Test
     public void makeOnePizza() {
         List<Action> actions = new ArrayList<>();
@@ -35,7 +36,7 @@ public class BasicUnitTest {
         actions.add(new CookInOvenAction(4, 0, 100));
         actions.add(new MoveFromOvenAction(5));
         Recipe pizzaRecipe = new Recipe(actions);
-        Item pizza = new PizzaItem(pizzaRecipe);
+        Item pizza = new PizzaItem(pizzaRecipe, 0);
 
         Map<ActionType, Device> kitchenTools = new HashMap<>();
 
@@ -55,8 +56,8 @@ public class BasicUnitTest {
         RobotDevice robotDevice2 = new RobotDevice("robot2", availableActions2);
         availableActions2.forEach(actionType -> kitchenTools.put(actionType, robotDevice2));
 
-        Kitchen kitchen = new Kitchen(kitchenTools);
-        boolean success = kitchen.cook(pizza);
-        Assert.assertTrue(success);
+//        Kitchen kitchen = new Kitchen(kitchenTools, );
+//        boolean success = kitchen.scheduleCooking(pizza);
+//        Assert.assertTrue(success);
     }
 }

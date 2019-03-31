@@ -5,7 +5,9 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class TaskManager {
-    private final static String TASKS_QUEUE = "queue:tasks";
+    private final static String ITEM_TASKS_QUEUE = "queue:item-tasks";
+    private final static String ACTION_TASKS_QUEUE = "queue:action-tasks-";
+
     private final static String PIZZA_TASK = "PIZZA";
 
     private final RedisClient redisClient;
@@ -15,23 +17,33 @@ public class TaskManager {
         this.redisClient = redisClient;
     }
 
+    public void addActionTask(long itemId, int actionOrdinalNumber) {
+        addTask(String.valueOf(actionOrdinalNumber), ACTION_TASKS_QUEUE + itemId);
+    }
+
+    public int getNextActionOrderId(long itemId) {
+        String actionId = getTask(ACTION_TASKS_QUEUE + itemId);
+        return actionId == null ? null : Integer.valueOf(actionId);
+    }
+
+
     public void addTaskPizza() {
-        addTask(PIZZA_TASK);
+        addTask(PIZZA_TASK, ITEM_TASKS_QUEUE);
     }
 
     public boolean needToMakePizza() {
-        String task = getTask();
+        String task = getTask(ITEM_TASKS_QUEUE);
         if (task != null && !task.equals(PIZZA_TASK)) {
             throw new IllegalStateException("It's impossible to process task " + task);
         }
         return task != null;
     }
 
-    private void addTask(String task) {
-        redisClient.lpush(TASKS_QUEUE, task);
+    private void addTask(String task, String queue) {
+        redisClient.lpush(queue, task);
     }
 
-    private String getTask() {
-        return redisClient.rpop(TASKS_QUEUE);
+    private String getTask(String queue) {
+        return redisClient.rpop(queue);
     }
 }

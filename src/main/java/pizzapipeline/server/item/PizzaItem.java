@@ -10,7 +10,8 @@ public class PizzaItem extends Item {
 
     private final Recipe recipe; // TODO move to item ?
 
-    public PizzaItem(@NotNull Recipe recipe) {
+    public PizzaItem(@NotNull Recipe recipe, long id) {
+        super(id);
         Validate.notNull(recipe);
 
         this.recipe = recipe;
