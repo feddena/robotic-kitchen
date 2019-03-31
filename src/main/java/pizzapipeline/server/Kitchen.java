@@ -5,9 +5,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.Validate;
+import javax.validation.constraints.NotNull;
 
-import com.sun.istack.internal.NotNull;
+import org.apache.commons.lang3.Validate;
 
 import pizzapipeline.server.action.Action;
 import pizzapipeline.server.action.ActionType;
@@ -27,15 +27,15 @@ public class Kitchen {
     public boolean cook(@NotNull Item item) {
         Validate.notNull(item);
 
-        List<ActionType> kitchenUnableToCookItem =
+        List<ActionType> kitchenUnableDoActions =
                 item.getRecipe()
                 .getActions().stream()
                 .map(Action::getType)
                 .filter(action -> !tools.containsKey(action))
                 .collect(Collectors.toList());
 
-        if (!kitchenUnableToCookItem.isEmpty()) {
-            System.out.println("Kitchen unable to cook it dude because tools for " + kitchenUnableToCookItem + " unavailable");
+        if (!kitchenUnableDoActions.isEmpty()) {
+            System.out.println("Kitchen unable to cook it dude because tools for " + kitchenUnableDoActions + " unavailable");
             return false;
         }
 

@@ -2,7 +2,7 @@ package pizzapipeline.server.action;
 
 import java.util.Objects;
 
-import com.sun.istack.internal.NotNull;
+import javax.validation.constraints.NotNull;
 
 public abstract class Action {
 

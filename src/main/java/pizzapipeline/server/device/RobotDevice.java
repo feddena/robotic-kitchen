@@ -4,9 +4,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang3.Validate;
+import javax.validation.constraints.NotNull;
 
-import com.sun.istack.internal.NotNull;
+import org.apache.commons.lang3.Validate;
 
 import pizzapipeline.server.action.Action;
 import pizzapipeline.server.action.ActionType;
@@ -72,6 +72,7 @@ public class RobotDevice extends Device {
 
     private void sleepWell(int sec) {
         try {
+            //Thread.sleep(TimeUnit.MILLISECONDS.toMillis(millisec));
             Thread.sleep(TimeUnit.SECONDS.toMillis(sec));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

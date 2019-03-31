@@ -4,9 +4,6 @@ import pizzapipeline.server.action.Action;
 import pizzapipeline.server.item.Item;
 import pizzapipeline.server.item.ItemState;
 
-/**
- * kinda decorator
- */
 public abstract class Device {
 
     public void apply(Item item, Action action) {

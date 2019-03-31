@@ -1,14 +1,14 @@
 package pizzapipeline.server.item;
 
-import org.apache.commons.lang3.Validate;
+import javax.validation.constraints.NotNull;
 
-import com.sun.istack.internal.NotNull;
+import org.apache.commons.lang3.Validate;
 
 import pizzapipeline.server.recipe.Recipe;
 
 public class PizzaItem extends Item {
 
-    private final Recipe recipe;
+    private final Recipe recipe; // TODO move to item ?
 
     public PizzaItem(@NotNull Recipe recipe) {
         Validate.notNull(recipe);
