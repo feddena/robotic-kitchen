@@ -1,4 +1,4 @@
-package pizzapipeline.server;
+package pizzapipeline.server.kitchen;
 
 import java.util.Collections;
 import java.util.List;
@@ -8,6 +8,8 @@ import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 
 import org.apache.commons.lang3.Validate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import pizzapipeline.server.action.Action;
 import pizzapipeline.server.action.ActionType;
@@ -16,6 +18,7 @@ import pizzapipeline.server.device.InterractionResult;
 import pizzapipeline.server.item.Item;
 
 public class Kitchen {
+    private static final Logger log = LoggerFactory.getLogger(Kitchen.class);
     private final Map<ActionType, Device> tools;
 
     public Kitchen(@NotNull Map<ActionType, Device> tools) {
@@ -35,16 +38,16 @@ public class Kitchen {
                 .collect(Collectors.toList());
 
         if (!kitchenUnableDoActions.isEmpty()) {
-            System.out.println("Kitchen unable to cook it dude because tools for " + kitchenUnableDoActions + " unavailable");
+            log.warn("Kitchen unable to cook it dude because tools for {} unavailable", kitchenUnableDoActions);
             return false;
         }
 
-        System.out.println("Kitchen starting to cook your " + item.getType() + " dude");
+        log.warn("Kitchen starting to cook your {} dude", item.getType());
 
         for (Action action : item.getRecipe().getActions()) {
             tools.get(action.getType()).apply(item, action);
             if (item.getItemState().getLastAppliedActionResult() != InterractionResult.SUCCESS) {
-                System.out.println("Something goes wrong - fix me bro - your " + item.getType() + " will not be cooked");
+                log.warn("Something goes wrong - fix me bro - your {} will not be cooked", item.getType());
                 return false;
             }
         }

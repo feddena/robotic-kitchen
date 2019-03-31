@@ -2,22 +2,15 @@ package pizzapipeline.server.device;
 
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import pizzapipeline.server.action.Action;
 import pizzapipeline.server.action.CookInOvenAction;
 import pizzapipeline.server.item.Item;
 
 public class OvenDevice extends Device {
-
-    public InterractionResult cook(long milliseconds) {
-        try {
-            Thread.sleep(milliseconds);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            System.out.println("Cooking interrupted due to exception : " + e.getMessage());
-            return InterractionResult.FAILED;
-        }
-        return InterractionResult.SUCCESS;
-    }
+    private static final Logger log = LoggerFactory.getLogger(OvenDevice.class);
 
     @Override
     protected InterractionResult interact(Item item, Action action) {
@@ -26,14 +19,25 @@ public class OvenDevice extends Device {
         switch (item.getType()) {
             case PIZZA:
                 int secondsToCook = ((CookInOvenAction)action).getSecondsRequired();
-                System.out.println("Oven start cooking pizza - it will take " + secondsToCook + " seconds");
+                log.debug("Oven start cooking pizza - it will take {} seconds", secondsToCook);
                 result = cook(TimeUnit.SECONDS.toMillis(secondsToCook));
-                System.out.println("Pizza cooked with result " + result);
+                log.debug("Pizza cooked with result {}", result);
                 break;
             default:
         }
 
         return result;
+    }
+
+    private static InterractionResult cook(long milliseconds) {
+        try {
+            Thread.sleep(milliseconds);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.error("Cooking interrupted due to exception", e);
+            return InterractionResult.FAILED;
+        }
+        return InterractionResult.SUCCESS;
     }
 
     @Override

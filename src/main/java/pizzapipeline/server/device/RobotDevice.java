@@ -7,12 +7,15 @@ import java.util.concurrent.TimeUnit;
 import javax.validation.constraints.NotNull;
 
 import org.apache.commons.lang3.Validate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import pizzapipeline.server.action.Action;
 import pizzapipeline.server.action.ActionType;
 import pizzapipeline.server.item.Item;
 
 public class RobotDevice extends Device {
+    private static final Logger log = LoggerFactory.getLogger(RobotDevice.class);
 
     private final String name;
     private final List<ActionType> availableActions;
@@ -34,32 +37,32 @@ public class RobotDevice extends Device {
     protected InterractionResult interact(Item item, Action action) {
         InterractionResult interractionResult = InterractionResult.FAILED;
         if (!availableActions.contains(action.getType())) {
-            System.out.println(name + " unable to do " + action + " it's not in my list " + availableActions);
+            log.error("Robot {} unable to do {} due to npo ability to perform {}", name, action, availableActions);
             return interractionResult;
         }
         switch (action.getType()) {
             case ADD_CHEESE:
-                System.out.println(name + " adding some cheese");
+                log.debug("{} adding some cheese", name);
                 interractionResult = InterractionResult.SUCCESS;
                 sleepWell(2);
                 break;
             case ROLL_OUT_THE_DOUGH:
-                System.out.println(name + " rolling dough for you");
+                log.debug("{} rolling dough for you", name);
                 interractionResult = InterractionResult.SUCCESS;
                 sleepWell(5);
                 break;
             case ADD_SAUCE:
-                System.out.println(name + " adding some sauce");
+                log.debug("{} adding some sauce", name);
                 interractionResult = InterractionResult.SUCCESS;
                 sleepWell(2);
                 break;
             case MOVE_TO_OVEN:
-                System.out.println(name + " move pizza to oven");
+                log.debug("{} move pizza to oven", name);
                 interractionResult = InterractionResult.SUCCESS;
                 sleepWell(2);
                 break;
             case MOVE_FROM_OVEN:
-                System.out.println(name + " move pizza from oven");
+                log.debug("{} move pizza from oven", name);
                 interractionResult = InterractionResult.SUCCESS;
                 sleepWell(2);
                 break;
@@ -72,11 +75,10 @@ public class RobotDevice extends Device {
 
     private void sleepWell(int sec) {
         try {
-            //Thread.sleep(TimeUnit.MILLISECONDS.toMillis(millisec));
             Thread.sleep(TimeUnit.SECONDS.toMillis(sec));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            System.out.println("Robot was interrupted due to exception : " + e.getMessage());
+            log.error("Robot was interrupted due to exception", e);
         }
     }
 

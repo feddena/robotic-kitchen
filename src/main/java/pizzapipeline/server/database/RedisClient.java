@@ -7,15 +7,19 @@ import java.util.Set;
 
 import javax.annotation.PreDestroy;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
+import redis.clients.jedis.JedisPubSub;
 
 @Component
 public class RedisClient {
+    private static final Logger log = LoggerFactory.getLogger(RedisClient.class);
 
     private static final String JEDIS_MASTER_HOST = "localhost";
 
@@ -41,6 +45,59 @@ public class RedisClient {
         pool.destroy();
     }
 
+
+    public Long lpush(String key, String... strs) {
+        Jedis jedis = null;
+        Long res = null;
+        try {
+            jedis = pool.getResource();
+            res = jedis.lpush(key, strs);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+        } finally {
+            returnResource(pool, jedis);
+        }
+        return res;
+    }
+
+    synchronized public String rpop(String key) {
+        Jedis jedis = null;
+        String res = null;
+        try {
+            jedis = pool.getResource();
+            res = jedis.rpop(key);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+        } finally {
+            returnResource(pool, jedis);
+        }
+        return res;
+    }
+
+    public void subscribe(String channel, JedisPubSub subscriber) {
+        Jedis jedis = null;
+        try {
+            jedis = pool.getResource();
+            jedis.subscribe(subscriber);
+        } catch (Exception e) {
+            log.warn("Fail to subscribe to {} due to exception", channel, e.getMessage());
+        } finally {
+            returnResource(pool, jedis);
+        }
+    }
+
+    public void publish(String channel, String message) {
+        Jedis jedis = null;
+        try {
+            jedis = pool.getResource();
+            jedis.publish("channel", "test message");
+        } catch (Exception e) {
+            log.warn("Fail to publish message to {} due to exception", channel, e.getMessage());
+        } finally {
+            returnResource(pool, jedis);
+        }
+    }
+
     @Nullable
     public String get(String key) {
         Jedis jedis = null;
@@ -49,7 +106,7 @@ public class RedisClient {
             jedis = pool.getResource();
             value = jedis.get(key);
         } catch (Exception e) {
-            System.out.println("Fail to get " + key + " due to " + e.getMessage());
+            log.warn("Fail to get {} due to exception", key, e.getMessage());
         } finally {
             returnResource(pool, jedis);
         }
@@ -63,7 +120,7 @@ public class RedisClient {
             jedis = pool.getResource();
             return jedis.set(key, value);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
             return null;
         } finally {
             returnResource(pool, jedis);
@@ -80,7 +137,7 @@ public class RedisClient {
             jedis.expire(key, time);
             return result;
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
             return null;
         } finally {
             returnResource(pool, jedis);
@@ -101,7 +158,7 @@ public class RedisClient {
             }
             return Long.valueOf(result);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
             return null;
         } finally {
             returnResource(pool, jedis);
@@ -115,7 +172,7 @@ public class RedisClient {
             jedis = pool.getResource();
             return jedis.del(keys);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
             return null;
         } finally {
             returnResource(pool, jedis);
@@ -129,7 +186,7 @@ public class RedisClient {
             jedis = pool.getResource();
             res = jedis.append(key, str);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
             return res;
         } finally {
             returnResource(pool, jedis);
@@ -143,7 +200,7 @@ public class RedisClient {
             jedis = pool.getResource();
             return jedis.exists(key);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
             return false;
         } finally {
             returnResource(pool, jedis);
@@ -158,7 +215,7 @@ public class RedisClient {
             return jedis.setnx(key, value);
         } catch (Exception e) {
 
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
             return null;
         } finally {
             returnResource(pool, jedis);
@@ -173,7 +230,7 @@ public class RedisClient {
             res = jedis.setex(key, seconds, value);
         } catch (Exception e) {
 
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
         } finally {
             returnResource(pool, jedis);
         }
@@ -187,7 +244,7 @@ public class RedisClient {
             return jedis.setrange(key, offset, str);
         } catch (Exception e) {
 
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
             return 0L;
         } finally {
             returnResource(pool, jedis);
@@ -202,7 +259,7 @@ public class RedisClient {
             values = jedis.mget(keys);
         } catch (Exception e) {
 
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
         } finally {
             returnResource(pool, jedis);
         }
@@ -217,7 +274,7 @@ public class RedisClient {
             res = jedis.mset(keysvalues);
         } catch (Exception e) {
 
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
         } finally {
             returnResource(pool, jedis);
         }
@@ -232,7 +289,7 @@ public class RedisClient {
             res = jedis.msetnx(keysvalues);
         } catch (Exception e) {
 
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
         } finally {
             returnResource(pool, jedis);
         }
@@ -247,7 +304,7 @@ public class RedisClient {
             res = jedis.getSet(key, value);
         } catch (Exception e) {
 
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
         } finally {
             returnResource(pool, jedis);
         }
@@ -262,7 +319,7 @@ public class RedisClient {
             res = jedis.getrange(key, startOffset, endOffset);
         } catch (Exception e) {
 
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
         } finally {
             returnResource(pool, jedis);
         }
@@ -277,7 +334,7 @@ public class RedisClient {
             jedis = pool.getResource();
             res = jedis.incr(key);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
         } finally {
             returnResource(pool, jedis);
         }
@@ -293,7 +350,7 @@ public class RedisClient {
             res = jedis.incrBy(key, integer);
         } catch (Exception e) {
 
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
         } finally {
             returnResource(pool, jedis);
         }
@@ -309,7 +366,7 @@ public class RedisClient {
             res = jedis.decr(key);
         } catch (Exception e) {
 
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
         } finally {
             returnResource(pool, jedis);
         }
@@ -325,7 +382,7 @@ public class RedisClient {
             res = jedis.decrBy(key, integer);
         } catch (Exception e) {
 
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
         } finally {
             returnResource(pool, jedis);
         }
@@ -339,7 +396,7 @@ public class RedisClient {
             jedis = pool.getResource();
             res = jedis.type(key);
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            log.warn(e.getMessage());
         } finally {
             returnResource(pool, jedis);
         }
