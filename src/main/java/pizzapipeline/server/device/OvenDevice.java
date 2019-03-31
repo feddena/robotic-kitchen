@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import pizzapipeline.server.action.Action;
+import pizzapipeline.server.action.ActionType;
 import pizzapipeline.server.action.CookInOvenAction;
 import pizzapipeline.server.item.Item;
 
@@ -44,6 +45,33 @@ public class OvenDevice extends Device {
             return InterractionResult.FAILED;
         }
         return InterractionResult.SUCCESS;
+    }
+
+    public boolean putInItem(long itemId, ActionType actionType) {
+        try {
+            lock.readLock().tryLock(10, TimeUnit.MILLISECONDS);
+
+            if (actionType == ActionType.MOVE_TO_OVEN && deviceState != DeviceState.FREE_WITH_ITEM) {
+                throw new IllegalStateException("Unable to move to oven if have nothing");
+            } else if (deviceState != DeviceState.FREE &&
+                    !(deviceState == DeviceState.FREE_WITH_ITEM && itemOnTable == itemId)) {
+                log.debug("Fail to apply action {} due to device state {}", actionType, deviceState);
+                return false;
+            }
+
+        } catch (InterruptedException e) {
+            log.debug("Fail to apply action due to tryLock.readLock timeout", e);
+            return false;
+        } finally {
+            lock.readLock().unlock();
+        }
+
+        boolean success = setDeviceState(DeviceState.FREE_WITH_ITEM);
+
+        if (success) {
+            itemOnTable = itemId;
+        }
+        return success;
     }
 
     @Override

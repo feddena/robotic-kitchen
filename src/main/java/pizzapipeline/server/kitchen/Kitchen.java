@@ -20,6 +20,7 @@ import pizzapipeline.server.action.Action;
 import pizzapipeline.server.action.ActionType;
 import pizzapipeline.server.database.TaskManager;
 import pizzapipeline.server.device.Device;
+import pizzapipeline.server.device.OvenDevice;
 import pizzapipeline.server.item.Item;
 
 public class Kitchen {
@@ -82,8 +83,8 @@ public class Kitchen {
                     if (lockedToPerform) {
                         boolean lockedToPerform2 = true;
                         if (action.getType() == ActionType.MOVE_TO_OVEN) {  // this action requires lock of second device - oven
-                            for (Device device2 : tools.get(ActionType.COOK_IN_OVEN)) {
-                                lockedToPerform2 = device2.putInItem(item.getId(), ActionType.COOK_IN_OVEN);
+                            for (Device oven : tools.get(ActionType.COOK_IN_OVEN)) {
+                                lockedToPerform2 = ((OvenDevice)oven).putInItem(item.getId(), ActionType.COOK_IN_OVEN);
 
                                 if (lockedToPerform2) {
                                     break;
@@ -113,7 +114,7 @@ public class Kitchen {
                             taskManager.addActionTask(itemId, nextAction + 1);
                         } else {
                             cooked(itemId);
-                            device.pullOut(itemId);
+                            device.pullOut(itemId); // hope that some human will do it
                             log.info("{}-{} cooked and packed", item.getType(), itemId);
                         }
                         break;

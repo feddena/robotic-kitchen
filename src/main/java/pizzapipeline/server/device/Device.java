@@ -18,12 +18,12 @@ import pizzapipeline.server.item.ItemState;
 
 public abstract class Device {
     private final static Logger log = LoggerFactory.getLogger(Device.class);
-    private static final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
+    protected static final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 
     private final String name;
 
-    private volatile DeviceState deviceState = DeviceState.FREE;
-    private volatile Long itemOnTable;
+    protected volatile DeviceState deviceState = DeviceState.FREE;
+    protected volatile Long itemOnTable;
 
     public Device(@NotNull String name) {
         Validate.notNull(name);
@@ -36,6 +36,9 @@ public abstract class Device {
         return name;
     }
 
+    /**
+     * use if device was locked to perform action but it will not be used to perform it
+     */
     public void unlock() {
         try {
             lock.writeLock().tryLock(1000, TimeUnit.MILLISECONDS);
@@ -73,33 +76,6 @@ public abstract class Device {
         } finally {
             lock.writeLock().unlock();
         }
-    }
-
-    public boolean putInItem(long itemId, ActionType actionType) {
-        try {
-            lock.readLock().tryLock(10, TimeUnit.MILLISECONDS);
-
-            if (actionType == ActionType.MOVE_TO_OVEN && deviceState != DeviceState.FREE_WITH_ITEM) {
-                throw new IllegalStateException("Unable to move to oven if have nothing");
-            } else if (deviceState != DeviceState.FREE &&
-                    !(deviceState == DeviceState.FREE_WITH_ITEM && itemOnTable == itemId)) {
-                log.debug("Fail to apply action {} due to device state {}", actionType, deviceState);
-                return false;
-            }
-
-        } catch (InterruptedException e) {
-            log.debug("Fail to apply action due to tryLock.readLock timeout", e);
-            return false;
-        } finally {
-            lock.readLock().unlock();
-        }
-
-        boolean success = setDeviceState(DeviceState.FREE_WITH_ITEM);
-
-        if (success) {
-            itemOnTable = itemId;
-        }
-        return success;
     }
 
     public boolean lockToApply(long itemId, ActionType actionType) {
@@ -145,7 +121,7 @@ public abstract class Device {
         }
     }
 
-    private boolean setDeviceState(DeviceState state) {
+    protected boolean setDeviceState(DeviceState state) {
         try {
             lock.writeLock().tryLock(1000, TimeUnit.MILLISECONDS);
             deviceState = state;

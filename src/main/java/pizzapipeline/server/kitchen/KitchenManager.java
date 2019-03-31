@@ -1,12 +1,9 @@
 package pizzapipeline.server.kitchen;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -72,9 +69,8 @@ public class KitchenManager {
     private void cookPizzaIfNeed() {
         log.debug("Checking for new PIZZA tasks");
         if (taskManager.needToMakePizza()) {
-            log.info("Schedule cooking pizza for you");
             boolean cookingResult = scheduleCookPizza();
-            log.info("Pizza cooking scheduled success={}", cookingResult);
+            log.debug("Pizza cooking scheduled success={}", cookingResult);
         } else {
             log.debug("Got no new pizza orderss");
         }
