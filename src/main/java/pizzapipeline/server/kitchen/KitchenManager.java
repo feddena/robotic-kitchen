@@ -3,8 +3,10 @@ package pizzapipeline.server.kitchen;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -23,7 +25,9 @@ import pizzapipeline.server.action.AddSauceAction;
 import pizzapipeline.server.action.CookInOvenAction;
 import pizzapipeline.server.action.MoveFromOvenAction;
 import pizzapipeline.server.action.MoveToOvenAction;
+import pizzapipeline.server.action.PackPizzaAction;
 import pizzapipeline.server.action.RollOutDoughAction;
+import pizzapipeline.server.action.SlicePizzaAction;
 import pizzapipeline.server.database.DistrebutedCounterProvider;
 import pizzapipeline.server.database.TaskManager;
 import pizzapipeline.server.device.Device;
@@ -72,7 +76,7 @@ public class KitchenManager {
             boolean cookingResult = scheduleCookPizza();
             log.info("Pizza cooking scheduled success={}", cookingResult);
         } else {
-            log.debug("No pizza to cooked");
+            log.debug("Got no new pizza orderss");
         }
     }
 
@@ -84,6 +88,8 @@ public class KitchenManager {
         actions.add(new MoveToOvenAction(3));
         actions.add(new CookInOvenAction(4, 2, 100));
         actions.add(new MoveFromOvenAction(5));
+        actions.add(new SlicePizzaAction(6));
+        actions.add(new PackPizzaAction(7));
         Recipe pizzaRecipe = new Recipe(actions);
         Item pizza = new PizzaItem(pizzaRecipe, distrebutedCounterProvider.getNewTaskId());
 
@@ -94,7 +100,10 @@ public class KitchenManager {
 
         Map<ActionType, List<Device>> kitchenTools = new HashMap<>();
 
-        kitchenTools.put(ActionType.COOK_IN_OVEN, Collections.singletonList(new OvenDevice()));
+        List<Device> ovens = new ArrayList<>();
+        ovens.add(new OvenDevice("oven1"));
+        ovens.add(new OvenDevice("oven2"));
+        kitchenTools.put(ActionType.COOK_IN_OVEN, ovens);
 
         List<ActionType> availableActions = new ArrayList<>();
         availableActions.add(ActionType.ROLL_OUT_THE_DOUGH);
@@ -103,12 +112,22 @@ public class KitchenManager {
         availableActions.add(ActionType.MOVE_TO_OVEN);
 
         RobotDevice robotDevice = new RobotDevice("robot1", availableActions);
-        availableActions.forEach(actionType -> kitchenTools.put(actionType, Collections.singletonList(robotDevice)));
+        RobotDevice robotDevice2 = new RobotDevice("robot2", availableActions);
+        List<Device> beforeOvenRobots = new ArrayList<>();
+        beforeOvenRobots.add(robotDevice);
+        beforeOvenRobots.add(robotDevice2);
+        availableActions.forEach(actionType -> kitchenTools.put(actionType, beforeOvenRobots));
 
         List<ActionType> availableActions2 = new ArrayList<>();
         availableActions2.add(ActionType.MOVE_FROM_OVEN);
-        RobotDevice robotDevice2 = new RobotDevice("robot2", availableActions2);
-        availableActions2.forEach(actionType -> kitchenTools.put(actionType, Collections.singletonList(robotDevice2)));
+        availableActions2.add(ActionType.SLICE_PIZZA);
+        availableActions2.add(ActionType.PACK_INTO_BOX);
+        RobotDevice robotDevice3 = new RobotDevice("robot3", availableActions2);
+        RobotDevice robotDevice4 = new RobotDevice("robot4", availableActions2);
+        List<Device> afterOvenRobots = new ArrayList<>();
+        afterOvenRobots.add(robotDevice3);
+        afterOvenRobots.add(robotDevice4);
+        availableActions2.forEach(actionType -> kitchenTools.put(actionType, afterOvenRobots));
 
         return new Kitchen(kitchenTools, taskManager);
     }

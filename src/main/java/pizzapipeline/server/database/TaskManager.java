@@ -1,6 +1,7 @@
 package pizzapipeline.server.database;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -21,7 +22,8 @@ public class TaskManager {
         addTask(String.valueOf(actionOrdinalNumber), ACTION_TASKS_QUEUE + itemId);
     }
 
-    public int getNextActionOrderId(long itemId) {
+    @Nullable
+    public Integer getNextActionOrderId(long itemId) {
         String actionId = getTask(ACTION_TASKS_QUEUE + itemId);
         return actionId == null ? null : Integer.valueOf(actionId);
     }

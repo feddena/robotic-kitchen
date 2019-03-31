@@ -1,10 +1,15 @@
 package pizzapipeline.server.device;
 
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+import javax.validation.constraints.NotNull;
+
+import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.lang.Nullable;
 
 import pizzapipeline.server.action.Action;
 import pizzapipeline.server.action.ActionType;
@@ -15,14 +20,27 @@ public abstract class Device {
     private final static Logger log = LoggerFactory.getLogger(Device.class);
     private static final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 
+    private final String name;
+
     private volatile DeviceState deviceState = DeviceState.FREE;
     private volatile Long itemOnTable;
+
+    public Device(@NotNull String name) {
+        Validate.notNull(name);
+
+        this.name = name;
+    }
+
+    @NotNull
+    public String getName() {
+        return name;
+    }
 
     public void unlock() {
         try {
             lock.writeLock().tryLock(1000, TimeUnit.MILLISECONDS);
             if (deviceState == DeviceState.BUSY) {
-                deviceState = DeviceState.FREE;
+                deviceState = itemOnTable == null ? DeviceState.FREE : DeviceState.FREE_WITH_ITEM;
             }
         } catch (InterruptedException e) {
             log.error("Fail to unlock device due to tryLock.writeLock timeout", e);
@@ -31,14 +49,33 @@ public abstract class Device {
         }
     }
 
-    /**
-     *  it's unsafe to use it without success lockToPutIn
-     */
-    public void unsafePutItem(long itemId) {
-        itemOnTable = itemId;
+    @Nullable
+    public Long getItemOnTable() {
+        return itemOnTable;
     }
 
-    public boolean lockToPutIn(long itemId, ActionType actionType) {
+    public void pullOut(long itemId) {
+        try {
+            lock.writeLock().tryLock(1000, TimeUnit.MILLISECONDS);
+
+            if (itemOnTable != itemId) {
+                return;
+            }
+
+            if (deviceState != DeviceState.FREE_WITH_ITEM) {
+                throw new IllegalStateException("Unable to pull out from oven " + getName() + " in state=" + deviceState);
+            }
+            deviceState = DeviceState.FREE;
+            itemOnTable = null;
+
+        } catch (InterruptedException e) {
+            log.debug("Fail to apply action due to tryLock.readLock timeout", e);
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    public boolean putInItem(long itemId, ActionType actionType) {
         try {
             lock.readLock().tryLock(10, TimeUnit.MILLISECONDS);
 
@@ -46,7 +83,7 @@ public abstract class Device {
                 throw new IllegalStateException("Unable to move to oven if have nothing");
             } else if (deviceState != DeviceState.FREE &&
                     !(deviceState == DeviceState.FREE_WITH_ITEM && itemOnTable == itemId)) {
-                log.debug("Fail to apply action due to device state {}", deviceState);
+                log.debug("Fail to apply action {} due to device state {}", actionType, deviceState);
                 return false;
             }
 
@@ -57,27 +94,24 @@ public abstract class Device {
             lock.readLock().unlock();
         }
 
-        try {
-            lock.writeLock().tryLock(1000, TimeUnit.MILLISECONDS);
-            deviceState = DeviceState.FREE_WITH_ITEM;
-        } catch (InterruptedException e) {
-            log.debug("Fail to lock for action due to tryLock.writeLock timeout", e);
-            return false;
-        } finally {
-            lock.writeLock().unlock();
+        boolean success = setDeviceState(DeviceState.FREE_WITH_ITEM);
+
+        if (success) {
+            itemOnTable = itemId;
         }
-        return true;
+        return success;
     }
 
     public boolean lockToApply(long itemId, ActionType actionType) {
         try {
             lock.readLock().tryLock(10, TimeUnit.MILLISECONDS);
 
-            if (actionType == ActionType.MOVE_TO_OVEN && deviceState != DeviceState.FREE_WITH_ITEM) {
-                throw new IllegalStateException("Unable to move to oven if have nothing");
-            } else if (deviceState != DeviceState.FREE &&
-                    !(deviceState == DeviceState.FREE_WITH_ITEM && itemOnTable == itemId)) {
-                log.debug("Fail to apply action due to device state {}", deviceState);
+            boolean readyToMoveToOven = actionType == ActionType.MOVE_TO_OVEN && deviceState == DeviceState.FREE_WITH_ITEM;
+            boolean readyForNewItem = actionType != ActionType.MOVE_TO_OVEN && deviceState == DeviceState.FREE;
+            boolean readyToApplyActionToItemOnTable = deviceState == DeviceState.FREE_WITH_ITEM && itemOnTable == itemId;
+
+            if (!readyToMoveToOven && !readyForNewItem && ! readyToApplyActionToItemOnTable) {
+                log.debug("{} fail to apply action {} due to device state {}", getName(), actionType, deviceState);
                 return false;
             }
 
@@ -88,16 +122,7 @@ public abstract class Device {
             lock.readLock().unlock();
         }
 
-        try {
-            lock.writeLock().tryLock(1000, TimeUnit.MILLISECONDS);
-            deviceState = DeviceState.BUSY;
-        } catch (InterruptedException e) {
-            log.debug("Fail to lock for action due to tryLock.writeLock timeout", e);
-            return false;
-        } finally {
-            lock.writeLock().unlock();
-        }
-        return true;
+        return setDeviceState(DeviceState.BUSY);
     }
 
     public void apply(Item item, Action action) {
@@ -108,6 +133,7 @@ public abstract class Device {
             lock.writeLock().tryLock(1000, TimeUnit.MILLISECONDS);
             if (action.getType() == ActionType.MOVE_TO_OVEN ) {
                 deviceState = DeviceState.FREE;
+                itemOnTable = null;
             } else {
                 deviceState = DeviceState.FREE_WITH_ITEM;
                 itemOnTable = item.getId();
@@ -119,5 +145,43 @@ public abstract class Device {
         }
     }
 
+    private boolean setDeviceState(DeviceState state) {
+        try {
+            lock.writeLock().tryLock(1000, TimeUnit.MILLISECONDS);
+            deviceState = state;
+        } catch (InterruptedException e) {
+            log.debug("Fail to lock for action due to tryLock.writeLock timeout", e);
+            return false;
+        } finally {
+            lock.writeLock().unlock();
+        }
+        return true;
+    }
+
     abstract InterractionResult interact(Item item, Action action);
+
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Device device = (Device) o;
+        return Objects.equals(name, device.name) &&
+                deviceState == device.deviceState &&
+                Objects.equals(itemOnTable, device.itemOnTable);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, deviceState, itemOnTable);
+    }
+
+    @Override
+    public String toString() {
+        return "Device{" +
+                "name='" + name + '\'' +
+                ", deviceState=" + deviceState +
+                ", itemOnTable=" + itemOnTable +
+                '}';
+    }
 }

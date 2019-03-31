@@ -25,7 +25,7 @@ import pizzapipeline.server.item.Item;
 public class Kitchen {
     private static final Logger log = LoggerFactory.getLogger(Kitchen.class);
     private final Map<ActionType, List<Device>> tools;
-    private final ScheduledExecutorService executor = new ScheduledThreadPoolExecutor(5);
+    private final ScheduledExecutorService executor;
     private final ConcurrentHashMap<Long, Item> nowCooking = new ConcurrentHashMap<>();
 
     private final TaskManager taskManager;
@@ -36,7 +36,9 @@ public class Kitchen {
 
         this.tools = Collections.unmodifiableMap(tools);
         this.taskManager = taskManager;
-        executor.scheduleAtFixedRate(this::tryCookSomething, 0, 5, TimeUnit.SECONDS);
+        int numDevices = tools.values().stream().map(List::size).mapToInt(a -> a).sum();
+        executor = new ScheduledThreadPoolExecutor(numDevices);
+        executor.scheduleAtFixedRate(this::tryCookSomething, 0, 1, TimeUnit.SECONDS);
     }
 
     public void destroy() throws InterruptedException {
@@ -53,54 +55,74 @@ public class Kitchen {
             Set<Map.Entry<Long, Item>> id2Item = nowCooking.entrySet();
 
             if (id2Item.isEmpty()) {
-                log.info("Nothing to cook");
+                log.trace("Nothing to cook");
                 return;
             }
 
             log.debug("Looking for available devices to cook {}", id2Item);
 
-            id2Item.forEach(idAndItem -> {
-                long id = idAndItem.getKey();
-                int nextAction = taskManager.getNextActionOrderId(id);
+            for (Map.Entry<Long, Item> idAndItem : id2Item) {
+                long itemId = idAndItem.getKey();
+                Integer nextAction = taskManager.getNextActionOrderId(itemId);
                 Item item = idAndItem.getValue();
+                if (nextAction == null) {
+                    log.debug("Skipping {}-{} next action due to receiving null actionId from DB", item.getType(), item.getId());
+                    continue;
+                }
+
                 Action action = item.getRecipe().getActions().get(nextAction);
                 log.debug("Trying to perform {} for {}-{}", action, item.getType(), item.getId());
-                tools.get(action.getType()).forEach(device -> {
 
-                    boolean lockedToPerform = device.lockToApply(item.getId(), action.getType());
+                boolean lockedToPerform = false;
+                for (Device device : tools.get(action.getType())) {
+                    if (device.getItemOnTable() != null && device.getItemOnTable() != itemId) {
+                        continue; // device have different item -> it's unable to perform action on it
+                    }
+                    lockedToPerform = device.lockToApply(item.getId(), action.getType()); // try to lock device for action
                     if (lockedToPerform) {
                         boolean lockedToPerform2 = true;
-                        if (action.getType() == ActionType.MOVE_TO_OVEN) {
+                        if (action.getType() == ActionType.MOVE_TO_OVEN) {  // this action requires lock of second device - oven
                             for (Device device2 : tools.get(ActionType.COOK_IN_OVEN)) {
-                                lockedToPerform2 = device2.lockToPutIn(item.getId(), ActionType.COOK_IN_OVEN);
+                                lockedToPerform2 = device2.putInItem(item.getId(), ActionType.COOK_IN_OVEN);
 
                                 if (lockedToPerform2) {
-                                    device2.unsafePutItem(id);
                                     break;
                                 }
                             }
                         }
 
-                        if (!lockedToPerform2) {
+                        if (!lockedToPerform2) {    // if second device required but it isn't available
                             device.unlock();
                             delayPerforming(action, item, nextAction);
-                            return;
+                            continue;
                         }
 
-                        log.info("Performing {} for {}-{}", action, item.getType(), id);
+                        log.info("{} performing {} for {}-{}", device.getName(), action, item.getType(), itemId);
                         device.apply(item, action);
-                        if (item.getRecipe().getActions().size() - 1 > nextAction) {
-                            log.debug("Schedule next action {} for {}", item.getRecipe().getActions().get(nextAction + 1), id);
-                            taskManager.addActionTask(id, nextAction + 1);
-                        } else {
-                            cooked(id);
-                            log.info("{}-{} cooked", item.getType(), id);
+
+                        if (action.getType() == ActionType.MOVE_FROM_OVEN) {
+                            tools.get(ActionType.COOK_IN_OVEN).forEach(oven -> {
+                                if (oven.getItemOnTable() != null && oven.getItemOnTable() == itemId) {
+                                    oven.pullOut(itemId);
+                                }
+                            });
                         }
-                    } else {
-                        delayPerforming(action, item, nextAction);
+
+                        if (item.getRecipe().getActions().size() - 1 > nextAction) {
+                            log.debug("Schedule next action {} for {}", item.getRecipe().getActions().get(nextAction + 1), itemId);
+                            taskManager.addActionTask(itemId, nextAction + 1);
+                        } else {
+                            cooked(itemId);
+                            device.pullOut(itemId);
+                            log.info("{}-{} cooked and packed", item.getType(), itemId);
+                        }
+                        break;
                     }
-                });
-            });
+                }
+                if (!lockedToPerform) {
+                    delayPerforming(action, item, nextAction);
+                }
+            }
         } catch (RuntimeException e) {
             log.error("Fail to cook something due to exception", e);
         }

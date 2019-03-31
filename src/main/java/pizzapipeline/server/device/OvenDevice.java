@@ -2,6 +2,8 @@ package pizzapipeline.server.device;
 
 import java.util.concurrent.TimeUnit;
 
+import javax.validation.constraints.NotNull;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,6 +13,10 @@ import pizzapipeline.server.item.Item;
 
 public class OvenDevice extends Device {
     private static final Logger log = LoggerFactory.getLogger(OvenDevice.class);
+
+    public OvenDevice(@NotNull String name) {
+        super(name);
+    }
 
     @Override
     protected InterractionResult interact(Item item, Action action) {
