@@ -34,6 +34,7 @@ cd path/to/repo/robotic-kitchen
 mvn spring-boot:run
 ```
 3. schedule pizza cooking by opening http://localhost:8080/makePizza in browser
+
 Note: you able to make any amount of pizza by one API call by calling same method with optional param "amount" http://localhost:8080/makePizza?amount=10
 
 ## Stop
