@@ -19,8 +19,8 @@ make install
 ```
 2. install maven 
 * download the latest version from the http://maven.apache.org/
-* extract somewhere
-* add it to PATH
+* extract archive somewhere
+* add path to extracted files to PATH
 
 ## Run
 
