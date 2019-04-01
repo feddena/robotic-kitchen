@@ -31,6 +31,8 @@ public abstract class Device {
         this.name = name;
     }
 
+    abstract InterractionResult interact(Item item, Action action);
+
     @NotNull
     public String getName() {
         return name;
@@ -133,9 +135,6 @@ public abstract class Device {
         }
         return true;
     }
-
-    abstract InterractionResult interact(Item item, Action action);
-
 
     @Override
     public boolean equals(Object o) {
