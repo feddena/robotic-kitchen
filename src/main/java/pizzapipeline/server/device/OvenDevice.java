@@ -4,6 +4,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.validation.constraints.NotNull;
 
+import org.apache.commons.lang3.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +48,9 @@ public class OvenDevice extends Device {
         return InterractionResult.SUCCESS;
     }
 
-    public boolean putInItem(long itemId, ActionType actionType) {
+    public boolean putInItem(long itemId, @NotNull ActionType actionType) {
+        Validate.notNull(actionType);
+
         try {
             lock.readLock().tryLock(10, TimeUnit.MILLISECONDS);
 

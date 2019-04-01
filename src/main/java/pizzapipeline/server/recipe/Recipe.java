@@ -13,7 +13,7 @@ public class Recipe {
     private final List<Action> actions;
 
     public Recipe(@NotNull List<Action> actions) {
-        Validate.notNull(actions);
+        Validate.notEmpty(actions);
 
         this.actions = Collections.unmodifiableList(actions);
     }

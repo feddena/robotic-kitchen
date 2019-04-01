@@ -29,7 +29,10 @@ public class RobotDevice extends Device {
     }
 
     @Override
-    protected InterractionResult interact(Item item, Action action) {
+    protected InterractionResult interact(@NotNull Item item, @NotNull Action action) {
+        Validate.notNull(item);
+        Validate.notNull(action);
+
         InterractionResult interractionResult = InterractionResult.FAILED;
         if (!availableActions.contains(action.getType())) {
             log.error("Robot {} unable to do {} due to npo ability to perform {}", getName(), action, availableActions);
