@@ -48,4 +48,5 @@ public class TaskManager {
     private String getTask(String queue) {
         return redisClient.rpop(queue);
     }
+
 }

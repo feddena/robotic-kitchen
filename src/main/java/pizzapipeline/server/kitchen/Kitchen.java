@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 
 import pizzapipeline.server.action.Action;
 import pizzapipeline.server.action.ActionType;
+import pizzapipeline.server.database.DeviceManager;
 import pizzapipeline.server.database.TaskManager;
 import pizzapipeline.server.device.Device;
 import pizzapipeline.server.device.OvenDevice;
@@ -30,16 +31,22 @@ public class Kitchen {
     private final ConcurrentHashMap<Long, Item> nowCooking = new ConcurrentHashMap<>();
 
     private final TaskManager taskManager;
+    private final DeviceManager deviceManager;
 
-    public Kitchen(@NotNull Map<ActionType, List<Device>> tools, @NotNull TaskManager taskManager) {
+    public Kitchen(@NotNull Map<ActionType, List<Device>> tools,
+                   @NotNull TaskManager taskManager,
+                   @NotNull DeviceManager deviceManager) {
         Validate.notNull(tools);
         Validate.notNull(taskManager);
 
         this.tools = Collections.unmodifiableMap(tools);
         this.taskManager = taskManager;
+        this.deviceManager = deviceManager;
         int numDevices = tools.values().stream().map(List::size).mapToInt(a -> a).sum();
         executor = new ScheduledThreadPoolExecutor(numDevices);
         executor.scheduleAtFixedRate(this::tryCookSomething, 0, 1, TimeUnit.SECONDS);
+
+        tools.values().forEach(list -> list.forEach(deviceManager::register)); // register all devices from kitchen
     }
 
     public void destroy() throws InterruptedException {
@@ -62,20 +69,20 @@ public class Kitchen {
 
             log.debug("Looking for available devices to cook {}", id2Item);
 
-            for (Map.Entry<Long, Item> idAndItem : id2Item) {
+            for (Map.Entry<Long, Item> idAndItem : id2Item) { // iterate over all items which kitchen cooking
                 long itemId = idAndItem.getKey();
-                Integer nextAction = taskManager.getNextActionOrderId(itemId);
+                Integer nextAction = taskManager.getNextActionOrderId(itemId); // get next required for item action order id
                 Item item = idAndItem.getValue();
                 if (nextAction == null) {
                     log.debug("Skipping {}-{} next action due to receiving null actionId from DB", item.getType(), item.getId());
                     continue;
                 }
 
-                Action action = item.getRecipe().getActions().get(nextAction);
+                Action action = item.getRecipe().getActions().get(nextAction); // get action by  action order id
                 log.debug("Trying to perform {} for {}-{}", action, item.getType(), item.getId());
 
                 boolean lockedToPerform = false;
-                for (Device device : tools.get(action.getType())) {
+                for (Device device : tools.get(action.getType())) { // iterate over devices to find one which able to perform action
                     if (device.getItemOnTable() != null && device.getItemOnTable() != itemId) {
                         continue; // device have different item -> it's unable to perform action on it
                     }
@@ -99,24 +106,8 @@ public class Kitchen {
                         }
 
                         log.info("{} performing {} for {}-{}", device.getName(), action, item.getType(), itemId);
-                        device.apply(item, action);
-
-                        if (action.getType() == ActionType.MOVE_FROM_OVEN) {
-                            tools.get(ActionType.COOK_IN_OVEN).forEach(oven -> {
-                                if (oven.getItemOnTable() != null && oven.getItemOnTable() == itemId) {
-                                    oven.pullOut(itemId);
-                                }
-                            });
-                        }
-
-                        if (item.getRecipe().getActions().size() - 1 > nextAction) {
-                            log.debug("Schedule next action {} for {}", item.getRecipe().getActions().get(nextAction + 1), itemId);
-                            taskManager.addActionTask(itemId, nextAction + 1);
-                        } else {
-                            cooked(itemId);
-                            device.pullOut(itemId); // hope that some human will do it
-                            log.info("{}-{} cooked and packed", item.getType(), itemId);
-                        }
+                        //deviceManager.subscribe(device);
+                        deviceManager.applyAction(device, action.getType().toString(), new OnSuccessActionJob(action, item, nextAction, device));
                         break;
                     }
                 }
@@ -165,4 +156,50 @@ public class Kitchen {
         log.debug("Performing {} for {} delayed", action, item.getType());
         taskManager.addActionTask(item.getId(), nextAction);
     }
+
+
+    public class OnSuccessActionJob {
+
+        private final Action action;
+        private final long itemId;
+        private final Item item;
+        private final int nextAction;
+        private final Device device;
+
+        public OnSuccessActionJob(@NotNull Action action, @NotNull Item item, int nextAction, @NotNull Device device) {
+            Validate.notNull(action);
+            Validate.notNull(item);
+            Validate.notNull(device);
+
+            this.action = action;
+            this.itemId = item.getId();
+            this.item = item;
+            this.nextAction = nextAction;
+            this.device = device;
+        }
+
+        public void completeJob(@NotNull String result) {
+            Validate.notNull(result);
+
+            device.apply(item, action);
+
+            if (action.getType() == ActionType.MOVE_FROM_OVEN) { // if apply MOVE_FROM_OVEN action find right oven and pull out item from it
+                tools.get(ActionType.COOK_IN_OVEN).forEach(oven -> {
+                    if (oven.getItemOnTable() != null && oven.getItemOnTable() == itemId) {
+                        oven.pullOut(itemId);
+                    }
+                });
+            }
+
+            if (item.getRecipe().getActions().size() - 1 > nextAction) { // if recipe has more actions schedule them else finish cooking
+                log.debug("Schedule next action {} for {}", item.getRecipe().getActions().get(nextAction + 1), itemId);
+                taskManager.addActionTask(itemId, nextAction + 1);
+            } else {
+                cooked(itemId);
+                device.pullOut(itemId); // hope that some human will do it
+                log.info("{}-{} cooked and packed", item.getType(), itemId);
+            }
+        }
+    }
+
 }

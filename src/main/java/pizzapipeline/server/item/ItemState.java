@@ -4,7 +4,7 @@ import javax.validation.constraints.NotNull;
 
 import org.apache.commons.lang3.Validate;
 
-import pizzapipeline.server.Location;
+import pizzapipeline.server.action.Location;
 import pizzapipeline.server.device.InterractionResult;
 
 public class ItemState {

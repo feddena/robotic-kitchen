@@ -25,6 +25,7 @@ import pizzapipeline.server.action.MoveToOvenAction;
 import pizzapipeline.server.action.PackPizzaAction;
 import pizzapipeline.server.action.RollOutDoughAction;
 import pizzapipeline.server.action.SlicePizzaAction;
+import pizzapipeline.server.database.DeviceManager;
 import pizzapipeline.server.database.DistrebutedCounterProvider;
 import pizzapipeline.server.database.TaskManager;
 import pizzapipeline.server.device.Device;
@@ -44,10 +45,12 @@ public class KitchenManager {
     private final DistrebutedCounterProvider distrebutedCounterProvider;
 
     @Autowired
-    public KitchenManager(TaskManager taskManager, DistrebutedCounterProvider distrebutedCounterProvider) {
+    public KitchenManager(TaskManager taskManager,
+                          DistrebutedCounterProvider distrebutedCounterProvider,
+                          DeviceManager deviceManager) {
         this.taskManager = taskManager;
         this.distrebutedCounterProvider = distrebutedCounterProvider;
-        kitchen = createDefaultKitchen();
+        kitchen = new Kitchen(createDefaultKitchenTools(), taskManager, deviceManager);
     }
 
     @PostConstruct
@@ -92,7 +95,7 @@ public class KitchenManager {
         return kitchen.scheduleCooking(pizza);
     }
 
-    private Kitchen createDefaultKitchen() {
+    private Map<ActionType, List<Device>> createDefaultKitchenTools() {
 
         Map<ActionType, List<Device>> kitchenTools = new HashMap<>();
 
@@ -125,6 +128,6 @@ public class KitchenManager {
         afterOvenRobots.add(robotDevice4);
         availableActions2.forEach(actionType -> kitchenTools.put(actionType, afterOvenRobots));
 
-        return new Kitchen(kitchenTools, taskManager);
+        return kitchenTools;
     }
 }

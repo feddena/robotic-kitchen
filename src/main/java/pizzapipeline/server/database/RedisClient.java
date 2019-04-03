@@ -41,7 +41,6 @@ public class RedisClient {
         pool.destroy();
     }
 
-
     public Long lpush(String key, String... strs) {
         Jedis jedis = null;
         Long res = null;
@@ -51,7 +50,7 @@ public class RedisClient {
         } catch (Exception e) {
             log.error(e.getMessage());
         } finally {
-            returnResource(pool, jedis);
+            returnResource(jedis);
         }
         return res;
     }
@@ -65,7 +64,7 @@ public class RedisClient {
         } catch (Exception e) {
             log.error(e.getMessage());
         } finally {
-            returnResource(pool, jedis);
+            returnResource(jedis);
         }
         return res;
     }
@@ -80,12 +79,12 @@ public class RedisClient {
         } catch (Exception e) {
             log.warn(e.getMessage());
         } finally {
-            returnResource(pool, jedis);
+            returnResource(jedis);
         }
         return res;
     }
 
-    private static void returnResource(JedisPool pool, Jedis jedis) {
+    private static void returnResource(Jedis jedis) {
         if (jedis != null) {
             jedis.close();
         }

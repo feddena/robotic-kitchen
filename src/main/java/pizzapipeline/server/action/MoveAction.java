@@ -6,8 +6,6 @@ import javax.validation.constraints.NotNull;
 
 import org.apache.commons.lang3.Validate;
 
-import pizzapipeline.server.Location;
-
 public abstract class MoveAction extends Action {
 
     private final Location from;

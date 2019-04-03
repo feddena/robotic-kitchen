@@ -15,6 +15,7 @@ import pizzapipeline.server.action.Action;
 import pizzapipeline.server.action.ActionType;
 import pizzapipeline.server.item.Item;
 import pizzapipeline.server.item.ItemState;
+import pizzapipeline.server.kitchen.Kitchen;
 
 public abstract class Device {
     private final static Logger log = LoggerFactory.getLogger(Device.class);
@@ -22,13 +23,33 @@ public abstract class Device {
 
     private final String name;
 
+    private volatile boolean acting;
+    private volatile Kitchen.OnSuccessActionJob onSuccessActionJob;
+
     protected volatile DeviceState deviceState = DeviceState.FREE;
     protected volatile Long itemOnTable;
+
 
     public Device(@NotNull String name) {
         Validate.notNull(name);
 
         this.name = name;
+    }
+
+    public Kitchen.OnSuccessActionJob getOnSuccessActionJob() {
+        return onSuccessActionJob;
+    }
+
+    public void setOnSuccessActionJob(Kitchen.OnSuccessActionJob onSuccessActionJob) {
+        this.onSuccessActionJob = onSuccessActionJob;
+    }
+
+    public boolean isActing() {
+        return acting;
+    }
+
+    public void setActing(boolean acting) {
+        this.acting = acting;
     }
 
     abstract InterractionResult interact(Item item, Action action);

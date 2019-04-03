@@ -1,7 +1,5 @@
 package pizzapipeline.server.action;
 
-import pizzapipeline.server.Location;
-
 public class MoveToOvenAction extends MoveAction {
     public MoveToOvenAction(int ordinalNumber) {
         super(ordinalNumber, Location.TABLE_BEFORE_OVEN, Location.OVEN);
