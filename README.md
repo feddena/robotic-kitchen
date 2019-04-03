@@ -37,7 +37,9 @@ mvn spring-boot:run
 ```
 3. schedule pizza cooking by opening http://localhost:8080/makePizza in browser
 
-Note: you able to make any amount of pizza by one API call by calling same method with optional param "amount" http://localhost:8080/makePizza?amount=10
+Note: 
+* you able to make any amount of a pizza by one API call by calling the same method with optional param "amount" http://localhost:8080/makePizza?amount=10
+* to see what happens in more detail change level of logs in the ```log4j.properties``` file and restart the app 
 
 ## Stop
 1. stop app
